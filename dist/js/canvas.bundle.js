@@ -114,7 +114,7 @@ var mouse = {
 };
 var colors = ['#2185C5', '#7ECEFD', '#FFF6E5', '#FF7F66'];
 var gravity = 1;
-var friction = 0.99; // Event Listeners
+var friction = 0.9; // Event Listeners
 
 addEventListener('mousemove', function (event) {
   mouse.x = event.clientX;
@@ -139,6 +139,7 @@ var Ball = /*#__PURE__*/function () {
     this.dy = dy;
     this.radius = radius;
     this.color = color;
+    this.hit = 0;
   }
 
   _createClass(Ball, [{
@@ -177,16 +178,17 @@ var Ball = /*#__PURE__*/function () {
 var objects;
 var ball;
 var ballArray;
+var numBalls = 5;
 
 function init() {
   ballArray = [];
 
-  for (var i = 0; i < 4; i++) {
-    var radius = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(8, 20);
+  for (var i = 0; i < numBalls; i++) {
+    var radius = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(20, 30);
     var x = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(radius, canvas.width - radius);
     var y = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(0, canvas.height - radius);
-    var dx = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(-2, 2);
-    var dy = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(-2, 2);
+    var dx = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(-4, 4);
+    var dy = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(-4, 4);
     var color = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomColor"])(colors);
     ballArray.push(new Ball(x, y, dx, dy, radius, color));
   }
@@ -204,12 +206,123 @@ function animate() {
 
   for (var i = 0; i < ballArray.length; i++) {
     ballArray[i].update();
+    ballArray[i].hit = 0;
   } // objects.forEach(object => {
   //  object.update()
   // })
 
+
+  ballArray.forEach(function (b1, id1) {
+    // console.log(b)
+    if (!b1.hit) {
+      ballArray.forEach(function (b2, id2) {
+        if (id1 != id2 && !b2.hit) {
+          var dx = b1.x - b2.x;
+          var dy = b1.y - b2.y;
+          var d = Math.hypot(dx, dy);
+          var a = Math.atan2(dy, dx);
+          var n = 0.5 * Math.PI + a;
+          var ax = Math.cos(a);
+          var ay = Math.sin(a);
+          var nx = Math.cos(n);
+          var ny = Math.sin(n);
+          var va = {
+            i: ax,
+            j: ay
+          };
+          var vn = {
+            i: nx,
+            j: ny
+          };
+          var dd = d - b1.radius - b2.radius;
+
+          if (dd < 0) {
+            console.log('hit distance: ' + dd + ', angle: ' + a); // ballArray.splice(id1,1)
+            // ballArray.splice(id2,1)
+            // b1.color = randomColor(colors);
+            // b2.color = randomColor(colors);
+
+            console.log('before: ' + b1.dx); // b1.dx = -b1.dx;
+            // b2.dx = -b2.dx;
+            // b1.dy = -b1.dy;
+            // b2.dy = -b2.dy;
+
+            b1.hit = 1;
+            b2.hit = 1;
+            console.log('after: ' + b1.dx);
+            var vb1 = {
+              i: b1.dx,
+              j: b1.dy
+            };
+            var vb2 = {
+              i: b2.dx,
+              j: b2.dy
+            };
+            var b1Dotva = dotPoduct(vb1, va);
+            var b1Dotvn = dotPoduct(vb1, vn);
+            var b2Dotva = dotPoduct(vb2, va);
+            var b2Dotvn = dotPoduct(vb2, vn);
+            var u1a = b1Dotva;
+            var u2a = b2Dotva;
+            var u1n = b1Dotvn;
+            var u2n = b2Dotvn;
+            console.log(va, vn, b1, b2);
+            console.log(b1Dotva, b1Dotvn, b2Dotva, b2Dotvn);
+            var m1 = Math.PI * Math.pow(b1.radius, 2);
+            var m2 = Math.PI * Math.pow(b2.radius, 2); // let p1 = m1*b1Dotva
+            // let p2 = m2*b2Dotva
+
+            var v = momentumChange(m1, u1a, m2, u2a);
+            var v1a = v.v1;
+            var v2a = v.v2;
+            console.log('u1a: ' + u1a + ', u2a: ' + u2a + ', v1a: ' + v1a + ', v2a: ' + v2a); // v1 and v2 are scalar quantities pointing in the va direction; va, vx are unit vectors
+
+            var v1aDotvx = v1a * dotPoduct(va, vx);
+            var v1aDotvy = v1a * dotPoduct(va, vy);
+            var v2aDotvx = v2a * dotPoduct(va, vx);
+            var v2aDotvy = v2a * dotPoduct(va, vy);
+            var v1nDotvx = u1n * dotPoduct(vn, vx);
+            var v1nDotvy = u1n * dotPoduct(vn, vy);
+            var v2nDotvx = u2n * dotPoduct(vn, vx);
+            var v2nDotvy = u2n * dotPoduct(vn, vy);
+            console.log('v1aDotvx: ' + v1aDotvx + ', vx.i: ' + vx.i + ', vx.j: ' + vx.j);
+            b1.dx = v1aDotvx + v1nDotvx;
+            b1.dy = v1aDotvy + v1nDotvy;
+            b2.dx = v2aDotvx + v2nDotvx;
+            b2.dy = v2aDotvy + v2nDotvy;
+            console.log('after momentum: ' + b1.dx);
+          }
+        }
+      });
+    }
+  });
 }
 
+function momentumChange(m1, u1, m2, u2) {
+  // let e = (v2+u2)/(v1+u1) <= 1
+  // e = 1
+  var v1 = (m1 * u1 + m2 * u2 - m2 * (u1 - u2)) / (m1 + m2);
+  var v2 = (m2 * u2 + m1 * u1 - m1 * (u2 - u1)) / (m2 + m1);
+  console.log('m1: ' + m1 + ', m2: ' + m2);
+  console.log('u1: ' + u1 + ', u2: ' + u2 + ', v1: ' + v1 + ', v2: ' + v2);
+  return {
+    v1: v1,
+    v2: v2
+  };
+}
+
+function dotPoduct(v1, v2) {
+  return v1.i * v2.i + v1.j * v2.j;
+}
+
+var vx = {
+  i: 1,
+  j: 0
+};
+var vy = {
+  i: 0,
+  j: 1
+};
 init();
 animate();
 
