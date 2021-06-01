@@ -1,110 +1,131 @@
-import utils, { randomColor, randomIntFromRange } from './utils'
+import utils, { randomColor, randomIntFromRange } from './utils';
 
-const canvas = document.querySelector('canvas')
-const c = canvas.getContext('2d')
+const canvas = document.querySelector('canvas');
+const c = canvas.getContext('2d');
 
-canvas.width = innerWidth
-canvas.height = innerHeight
+canvas.width = innerWidth;
+canvas.height = innerHeight;
 
 const mouse = {
-  x: innerWidth / 2,
-  y: innerHeight / 2
-}
+	x: innerWidth / 2,
+	y: innerHeight / 2,
+};
 
-const colors = ['#2185C5', '#7ECEFD', '#FFF6E5', '#FF7F66']
+const colors = ['#2185C5', '#7ECEFD', '#FFF6E5', '#FF7F66'];
 
-var gravity = 1
-var friction = 0.99
+var gravity = 1;
+var friction = 0.99;
 
 // Event Listeners
 addEventListener('mousemove', (event) => {
-  mouse.x = event.clientX
-  mouse.y = event.clientY
-})
+	mouse.x = event.clientX;
+	mouse.y = event.clientY;
+});
 
 addEventListener('resize', () => {
-  canvas.width = innerWidth
-  canvas.height = innerHeight
+	canvas.width = innerWidth;
+	canvas.height = innerHeight;
 
-  init()
-})
+	init();
+});
 
 addEventListener('click', () => {
-  init()
-})
-
+	init();
+});
 
 // Objects
 class Ball {
-  constructor(x, y, dx, dy, radius, color) {
-    this.x = x
-    this.y = y
-    this.dx = dx
-    this.dy = dy
-    this.radius = radius
-    this.color = color
-  }
+	constructor(x, y, dx, dy, radius, color) {
+		this.x = x;
+		this.y = y;
+		this.dx = dx;
+		this.dy = dy;
+		this.radius = radius;
+		this.color = color;
+	}
 
-  draw() {
-    c.beginPath()
-    c.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false)
-    c.fillStyle = this.color
-    c.fill()
-    c.stroke()
-    c.closePath()
-  }
+	draw() {
+		c.beginPath();
+		c.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+		c.fillStyle = this.color;
+		c.fill();
+		c.stroke();
+		c.closePath();
+	}
 
-  update() {
-    if (this.y + this.radius + this.dy > canvas.height) {
-      this.dy = -this.dy * friction
-    } else {
-      this.dy += gravity
-    }
+	update() {
+		if (this.y + this.radius + this.dy > canvas.height) {
+			this.dy = -this.dy * friction;
+		} else {
+			this.dy += gravity;
+		}
 
-    if (this.x + this.radius + this.dx> canvas.width || this.x - this.radius <= 0) {
-      this.dx = -this.dx
-    } 
-    this.x += this.dx
-    this.y += this.dy
-    this.draw()
-  }
+		if (
+			this.x + this.radius + this.dx > canvas.width ||
+			this.x - this.radius <= 0
+		) {
+			this.dx = -this.dx;
+		}
+		this.x += this.dx;
+		this.y += this.dy;
+		this.draw();
+	}
 }
 
 // Implementation
-let objects
-var ball
-var ballArray
+let objects;
+var ball;
+var ballArray;
 function init() {
-  ballArray = []
-  for (let i = 0; i < 4; i++) {
-    var radius = randomIntFromRange(8,20)
-    var x = randomIntFromRange(radius, canvas.width - radius)
-    var y = randomIntFromRange(0, canvas.height - radius)
-    var dx = randomIntFromRange(-2, 2)
-    var dy = randomIntFromRange(-2, 2)
-    var color = randomColor(colors)
-    ballArray.push(new Ball(x, y, dx, dy, radius, color))
-    
-  }
-  
+	ballArray = [];
+	for (let i = 0; i < 10; i++) {
+		var radius = randomIntFromRange(8, 20);
+		var x = randomIntFromRange(radius, canvas.width - radius);
+		var y = randomIntFromRange(0, canvas.height - radius);
+		var dx = randomIntFromRange(-2, 2);
+		var dy = randomIntFromRange(-2, 2);
+		var color = randomColor(colors);
+		ballArray.push(new Ball(x, y, dx, dy, radius, color));
+	}
 
-  for (let i = 0; i < 400; i++) {
-    // objects.push()
-  }
-  console.log(ballArray)
+	for (let i = 0; i < 400; i++) {
+		// objects.push()
+	}
+	console.log(ballArray);
 }
 
 // Animation Loop
 function animate() {
-  requestAnimationFrame(animate)
-  c.clearRect(0, 0, canvas.width, canvas.height)
-  for (let i = 0; i < ballArray.length; i++) {
-    ballArray[i].update()
-  }
-  // objects.forEach(object => {
-  //  object.update()
-  // })
+	requestAnimationFrame(animate);
+	c.clearRect(0, 0, canvas.width, canvas.height);
+	for (let i = 0; i < ballArray.length; i++) {
+		ballArray[i].update();
+	}
+	// objects.forEach(object => {
+	//  object.update()
+	// })
+
+	ballArray.forEach((b1, id1) => {
+		// console.log(b)
+		ballArray.forEach((b2, id2) => {
+			if (id1 != id2) {
+				let dx = b1.x - b2.x;
+				let dy = b1.y - b2.y;
+				let d = Math.hypot(dx, dy);
+				let a = Math.atan2(dy, dx);
+				if (d - b1.radius - b2.radius < 0) {
+					console.log('hit distance: ' + d + ', angle: ' + a);
+					// ballArray.splice(id1,1)
+					// ballArray.splice(id2,1)
+					b1.color = randomColor(colors);
+          b2.color = randomColor(colors);
+          b1.dx = randomIntFromRange(-2, 2);
+          b2.dx = randomIntFromRange(-2, 2);
+				}
+			}
+		});
+	});
 }
 
-init()
-animate()
+init();
+animate();
