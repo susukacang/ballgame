@@ -114,7 +114,7 @@ var mouse = {
 };
 var colors = ['#2185C5', '#7ECEFD', '#FFF6E5', '#FF7F66'];
 var gravity = 1;
-var friction = 0.9; // Event Listeners
+var friction = 0.99; // Event Listeners
 
 addEventListener('mousemove', function (event) {
   mouse.x = event.clientX;
@@ -155,14 +155,30 @@ var Ball = /*#__PURE__*/function () {
   }, {
     key: "update",
     value: function update() {
+      // bounce from floor
       if (this.y + this.radius + this.dy > canvas.height) {
         this.dy = -this.dy * friction;
+        this.y = canvas.height - this.radius - 1;
       } else {
         this.dy += gravity;
-      }
+      } // bounce from ceiling
 
-      if (this.x + this.radius + this.dx > canvas.width || this.x - this.radius <= 0) {
+
+      if (this.y - this.radius <= 0) {
+        this.dy = -this.dy;
+        this.y = this.radius + 1;
+      } // bounce from left wall
+
+
+      if (this.x - this.radius <= 0) {
         this.dx = -this.dx;
+        this.x = this.radius + 1;
+      } // bounce from right wall
+
+
+      if (this.x + this.radius + this.dx > canvas.width) {
+        this.dx = -this.dx;
+        this.x = canvas.width - this.radius - 1;
       }
 
       this.x += this.dx;
@@ -178,17 +194,17 @@ var Ball = /*#__PURE__*/function () {
 var objects;
 var ball;
 var ballArray;
-var numBalls = 5;
+var numBalls = 4;
 
 function init() {
   ballArray = [];
 
   for (var i = 0; i < numBalls; i++) {
-    var radius = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(20, 30);
+    var radius = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(20, 80);
     var x = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(radius, canvas.width - radius);
     var y = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(0, canvas.height - radius);
-    var dx = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(-4, 4);
-    var dy = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(-4, 4);
+    var dx = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(-8, 8);
+    var dy = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomIntFromRange"])(-8, 8);
     var color = Object(_utils__WEBPACK_IMPORTED_MODULE_0__["randomColor"])(colors);
     ballArray.push(new Ball(x, y, dx, dy, radius, color));
   }
@@ -223,33 +239,37 @@ function animate() {
           var a = Math.atan2(dy, dx);
           var n = 0.5 * Math.PI + a;
           var ax = Math.cos(a);
-          var ay = Math.sin(a);
-          var nx = Math.cos(n);
-          var ny = Math.sin(n);
+          var ay = Math.sin(a); // let nx = Math.cos(n)
+          // let ny = Math.sin(n)
+          //  let vn = {i:-sin(a), j: cos(a)}
+
           var va = {
             i: ax,
             j: ay
-          };
+          }; // let vn = {i: nx, j: ny}
+
           var vn = {
-            i: nx,
-            j: ny
+            i: -ay,
+            j: ax
           };
           var dd = d - b1.radius - b2.radius;
+          var m = 2; // margin
 
-          if (dd < 0) {
-            console.log('hit distance: ' + dd + ', angle: ' + a); // ballArray.splice(id1,1)
-            // ballArray.splice(id2,1)
-            // b1.color = randomColor(colors);
-            // b2.color = randomColor(colors);
-
-            console.log('before: ' + b1.dx); // b1.dx = -b1.dx;
-            // b2.dx = -b2.dx;
-            // b1.dy = -b1.dy;
-            // b2.dy = -b2.dy;
-
+          if (d + m < b1.radius + b2.radius) {
+            // console.log('hit distance: dd: ' + dd + ', d: ' + d + ', b1r: ' + b1.radius + ', b2r: ' + b2.radius + ', angle: ' + a);
+            console.log('hit distance: dd: ' + dd + ', d: ' + d + ', dy: ' + dy + ', dx: ' + dx + ', angle: ' + a);
+            var m1 = Math.PI * Math.pow(b1.radius, 2);
+            var m2 = Math.PI * Math.pow(b2.radius, 2);
+            var M = m1 + m2;
+            var m1_M = m1 / M;
+            var m2_M = m2 / M;
             b1.hit = 1;
             b2.hit = 1;
-            console.log('after: ' + b1.dx);
+            b1.x += m * ax * m1_M;
+            b1.y += m * ay * m1_M;
+            b2.x -= m * ax * m2_M;
+            b2.y -= m * ay * m2_M; // console.log('after: ' + b1.dx);
+
             var vb1 = {
               i: b1.dx,
               j: b1.dy
@@ -265,17 +285,17 @@ function animate() {
             var u1a = b1Dotva;
             var u2a = b2Dotva;
             var u1n = b1Dotvn;
-            var u2n = b2Dotvn;
-            console.log(va, vn, b1, b2);
-            console.log(b1Dotva, b1Dotvn, b2Dotva, b2Dotvn);
-            var m1 = Math.PI * Math.pow(b1.radius, 2);
-            var m2 = Math.PI * Math.pow(b2.radius, 2); // let p1 = m1*b1Dotva
+            var u2n = b2Dotvn; // console.log(va, vn, b1, b2)
+            // console.log(b1Dotva, b1Dotvn, b2Dotva, b2Dotvn)
+            // const m1 = Math.PI*(b1.radius)**2
+            // const m2 = Math.PI*(b2.radius)**2
+            // let p1 = m1*b1Dotva
             // let p2 = m2*b2Dotva
 
             var v = momentumChange(m1, u1a, m2, u2a);
             var v1a = v.v1;
-            var v2a = v.v2;
-            console.log('u1a: ' + u1a + ', u2a: ' + u2a + ', v1a: ' + v1a + ', v2a: ' + v2a); // v1 and v2 are scalar quantities pointing in the va direction; va, vx are unit vectors
+            var v2a = v.v2; // console.log('u1a: ' + u1a + ', u2a: ' + u2a + ', v1a: ' + v1a + ', v2a: ' + v2a)
+            // v1 and v2 are scalar quantities pointing in the va direction; va, vx are unit vectors
 
             var v1aDotvx = v1a * dotPoduct(va, vx);
             var v1aDotvy = v1a * dotPoduct(va, vy);
@@ -284,13 +304,12 @@ function animate() {
             var v1nDotvx = u1n * dotPoduct(vn, vx);
             var v1nDotvy = u1n * dotPoduct(vn, vy);
             var v2nDotvx = u2n * dotPoduct(vn, vx);
-            var v2nDotvy = u2n * dotPoduct(vn, vy);
-            console.log('v1aDotvx: ' + v1aDotvx + ', vx.i: ' + vx.i + ', vx.j: ' + vx.j);
+            var v2nDotvy = u2n * dotPoduct(vn, vy); // console.log('v1aDotvx: ' + v1aDotvx + ', vx.i: ' + vx.i + ', vx.j: ' + vx.j);
+
             b1.dx = v1aDotvx + v1nDotvx;
             b1.dy = v1aDotvy + v1nDotvy;
             b2.dx = v2aDotvx + v2nDotvx;
-            b2.dy = v2aDotvy + v2nDotvy;
-            console.log('after momentum: ' + b1.dx);
+            b2.dy = v2aDotvy + v2nDotvy; // console.log('after momentum: ' + b1.dx);
           }
         }
       });
@@ -302,9 +321,9 @@ function momentumChange(m1, u1, m2, u2) {
   // let e = (v2+u2)/(v1+u1) <= 1
   // e = 1
   var v1 = (m1 * u1 + m2 * u2 - m2 * (u1 - u2)) / (m1 + m2);
-  var v2 = (m2 * u2 + m1 * u1 - m1 * (u2 - u1)) / (m2 + m1);
-  console.log('m1: ' + m1 + ', m2: ' + m2);
-  console.log('u1: ' + u1 + ', u2: ' + u2 + ', v1: ' + v1 + ', v2: ' + v2);
+  var v2 = (m2 * u2 + m1 * u1 - m1 * (u2 - u1)) / (m2 + m1); // console.log('m1: ' + m1 + ', m2: ' + m2)
+  // console.log('u1: ' + u1 + ', u2: ' + u2 + ', v1: ' + v1 + ', v2: ' + v2)
+
   return {
     v1: v1,
     v2: v2
