@@ -118,15 +118,15 @@ var friction = 0.99; // Event Listeners
 
 addEventListener('mousemove', function (event) {
   mouse.x = event.clientX;
-  mouse.y = event.clientY;
+  mouse.y = event.clientY; // console.log(mouse.x, mouse.y)
 });
 addEventListener('resize', function () {
   canvas.width = innerWidth;
   canvas.height = innerHeight;
   init();
 });
-addEventListener('click', function () {
-  init();
+addEventListener('click', function (e) {
+  init(); // console.log(e.clientX, e.clientY)
 }); // Objects
 
 var Ball = /*#__PURE__*/function () {
@@ -188,6 +188,39 @@ var Ball = /*#__PURE__*/function () {
   }]);
 
   return Ball;
+}();
+
+var Block = /*#__PURE__*/function () {
+  function Block(x1, y1, x2, y2) {
+    _classCallCheck(this, Block);
+
+    this.x1 = x1;
+    this.y1 = y1;
+    this.x2 = x2;
+    this.y2 = y2; // // OB = OP + rAB
+    // this.OP = {i: this.x1, j: this.y1}
+    // this.AB = {i: this.x2 - this.x1, j: this.y2 - this.y1}
+    // this.OB = this.OP + r*this.AB
+  }
+
+  _createClass(Block, [{
+    key: "draw",
+    value: function draw() {
+      c.beginPath();
+      c.moveTo(this.x1, this.y1);
+      c.lineTo(this.x2, this.y2);
+      c.fill();
+      c.stroke();
+      c.closePath();
+    }
+  }, {
+    key: "update",
+    value: function update() {
+      this.draw();
+    }
+  }]);
+
+  return Block;
 }(); // Implementation
 
 
@@ -195,6 +228,26 @@ var objects;
 var ball;
 var ballArray;
 var numBalls = 4;
+var blockArray;
+
+function drawVector(x0, y0, x1, y1) {
+  c.beginPath();
+  c.moveTo(x0, y0);
+  c.lineTo(x1, y1);
+  c.fill();
+  c.stroke();
+  c.closePath();
+  console.log('drawVector: ', x0, y0, x1, y1);
+}
+
+function drawBubblePoint(x0, y0) {
+  c.beginPath();
+  c.arc(x0, y0, 5, 0, Math.PI * 2, false);
+  c.fill();
+  c.stroke();
+  c.closePath();
+  console.log('drawBubblePoint: ', x0, y0);
+}
 
 function init() {
   ballArray = [];
@@ -209,24 +262,72 @@ function init() {
     ballArray.push(new Ball(x, y, dx, dy, radius, color));
   }
 
-  for (var _i = 0; _i < 400; _i++) {// objects.push()
-  }
+  ballArray.forEach(function (b) {
+    return b.draw();
+  }); // console.log(ballArray);
 
-  console.log(ballArray);
-} // Animation Loop
+  blockArray = [];
+  blockArray.push(new Block(0, canvas.height / 2, canvas.width / 2, canvas.height));
+  blockArray.forEach(function (block) {
+    var b1 = block.x2 - block.x1;
+    var b2 = block.y2 - block.y1;
+    console.log('block: ', b1, b2, block.x1, block.y1, block.x2, block.y2);
+    ballArray.forEach(function (b) {
+      var r = b.radius; // check ball on which side of block
 
+      var t = (b.x - block.x1) / (block.x2 - block.x1);
+      var yp = (1 - t) * block.y1 + t * block.y2;
+      var p = b.y > yp ? 1 : -1;
+      p == 1 ? console.log('above') : console.log('below');
+      console.log('t: ', t, ', b.y: ', b.y, ',yp: ', yp); // ensure b1 and b2 are non-zero respectively
+
+      var a1 = p * r / Math.sqrt(1 + Math.pow(b1 / b2, 2));
+      var a2 = -p * r / Math.sqrt(1 + Math.pow(b2 / b1, 2));
+      var x1 = b.x + a1;
+      var y1 = b.y + a2;
+      console.log(a1, a2, b.x, b.y, x1, y1);
+      drawVector(b.x, b.y, x1, y1); // const dx = b.x - xp
+      // if(Math.hypot(dx,dy) < b.radius){
+      // 	console.log('hit block')
+      // }
+
+      var a21 = a2 / a1;
+      var num = block.y1 - b.y - a21 + b.x * a21;
+      var den = block.y1 - block.y2 - block.x1 * a21 + block.x2 * a21;
+      var k = num / den;
+      console.log('k: ', k);
+      var xs = (1 - k) * block.x1 + k * block.x2;
+      var ys = (1 - k) * block.y1 + k * block.y2;
+      drawBubblePoint(xs, ys);
+    });
+  });
+  blockArray.forEach(function (b) {
+    return b.draw();
+  });
+}
+
+var vx = {
+  i: 1,
+  j: 0
+};
+var vy = {
+  i: 0,
+  j: 1
+}; // Animation Loop
 
 function animate() {
   requestAnimationFrame(animate);
   c.clearRect(0, 0, canvas.width, canvas.height);
+  blockArray.forEach(function (b) {
+    console.log('block');
+    b.update();
+  });
 
   for (var i = 0; i < ballArray.length; i++) {
-    ballArray[i].update();
-    ballArray[i].hit = 0;
-  } // objects.forEach(object => {
-  //  object.update()
-  // })
+    ballArray[i].update(); // reset hit to 0 for all balls
 
+    ballArray[i].hit = 0;
+  }
 
   ballArray.forEach(function (b1, id1) {
     // console.log(b)
@@ -257,12 +358,14 @@ function animate() {
 
           if (d + m < b1.radius + b2.radius) {
             // console.log('hit distance: dd: ' + dd + ', d: ' + d + ', b1r: ' + b1.radius + ', b2r: ' + b2.radius + ', angle: ' + a);
-            console.log('hit distance: dd: ' + dd + ', d: ' + d + ', dy: ' + dy + ', dx: ' + dx + ', angle: ' + a);
+            // console.log('hit distance: dd: ' + dd + ', d: ' + d + ', dy: ' + dy + ', dx: ' + dx + ', angle: ' +	a);
+            // ball masses and relative masses
             var m1 = Math.PI * Math.pow(b1.radius, 2);
             var m2 = Math.PI * Math.pow(b2.radius, 2);
             var M = m1 + m2;
             var m1_M = m1 / M;
-            var m2_M = m2 / M;
+            var m2_M = m2 / M; // set hit to 1 to ensure that the ball is not referenced again when collision has been detected
+
             b1.hit = 1;
             b2.hit = 1;
             b1.x += m * ax * m1_M;
@@ -277,20 +380,17 @@ function animate() {
             var vb2 = {
               i: b2.dx,
               j: b2.dy
-            };
+            }; // determine ball velocity components in the line of collision(a) and normal to the line(n)
+
             var b1Dotva = dotPoduct(vb1, va);
             var b1Dotvn = dotPoduct(vb1, vn);
             var b2Dotva = dotPoduct(vb2, va);
-            var b2Dotvn = dotPoduct(vb2, vn);
+            var b2Dotvn = dotPoduct(vb2, vn); // assign to initial velocities, u, for convenience
+
             var u1a = b1Dotva;
             var u2a = b2Dotva;
             var u1n = b1Dotvn;
-            var u2n = b2Dotvn; // console.log(va, vn, b1, b2)
-            // console.log(b1Dotva, b1Dotvn, b2Dotva, b2Dotvn)
-            // const m1 = Math.PI*(b1.radius)**2
-            // const m2 = Math.PI*(b2.radius)**2
-            // let p1 = m1*b1Dotva
-            // let p2 = m2*b2Dotva
+            var u2n = b2Dotvn; // calculate ball velocities after collision using conservation of linear momentum
 
             var v = momentumChange(m1, u1a, m2, u2a);
             var v1a = v.v1;
@@ -305,6 +405,7 @@ function animate() {
             var v1nDotvy = u1n * dotPoduct(vn, vy);
             var v2nDotvx = u2n * dotPoduct(vn, vx);
             var v2nDotvy = u2n * dotPoduct(vn, vy); // console.log('v1aDotvx: ' + v1aDotvx + ', vx.i: ' + vx.i + ', vx.j: ' + vx.j);
+            // add the x- and y- components of ball velocities after collision
 
             b1.dx = v1aDotvx + v1nDotvx;
             b1.dy = v1aDotvy + v1nDotvy;
@@ -334,16 +435,7 @@ function dotPoduct(v1, v2) {
   return v1.i * v2.i + v1.j * v2.j;
 }
 
-var vx = {
-  i: 1,
-  j: 0
-};
-var vy = {
-  i: 0,
-  j: 1
-};
-init();
-animate();
+init(); // animate();
 
 /***/ }),
 
