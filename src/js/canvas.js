@@ -31,9 +31,50 @@ addEventListener('resize', () => {
 });
 
 addEventListener('click', (e) => {
+	mouse.x = e.clientX;
+	mouse.y = e.clientY;
 	init();
+	animate();
 	// console.log(e.clientX, e.clientY)
 });
+
+addEventListener('dblclick', () => {
+	// ballArray = [];
+	console.log('dblclick')
+});
+
+addEventListener(
+	'keydown',
+	(e) => {
+		if (e.defaultPrevented) {
+			return;
+		}
+		switch (e.code) {
+			case 'KeyM':
+				console.log(mouse.x, mouse.y);
+				break;
+			case 'KeyX':
+				console.log('clear ballArray');
+				ballArray = [];
+				break;
+			case 'KeyD':
+				console.log('delete ball');
+				ballArray.pop();
+				break;
+			case 'KeyA':
+				console.log('request animation');
+				animationId = requestAnimationFrame(animate);
+				break;
+			case 'KeyC':
+				console.log('cancel animation');
+				cancelAnimationFrame(animationId);
+				break;
+		}
+		// refresh()
+		e.preventDefault();
+	},
+	true
+);
 
 // Objects
 class Ball {
@@ -45,6 +86,7 @@ class Ball {
 		this.radius = radius;
 		this.color = color;
 		this.hit = 0;
+		this.life = 1e3;
 	}
 
 	draw() {
@@ -116,8 +158,8 @@ class Block {
 // Implementation
 let objects;
 var ball;
-var ballArray;
-let numBalls = 4;
+var ballArray = [];
+let numBalls = 1;
 let blockArray;
 
 function drawVector(x0, y0, x1, y1) {
@@ -127,24 +169,163 @@ function drawVector(x0, y0, x1, y1) {
 	c.fill();
 	c.stroke();
 	c.closePath();
-	console.log('drawVector: ', x0, y0, x1, y1);
+	drawBubblePoint(x1, y1, 1, "#000000", 0);
+	// console.log('drawVector: ', x0, y0, x1, y1);
 }
 
-function drawBubblePoint(x0, y0) {
+function drawBubblePoint(x0, y0, r = 5, color, fill = 1) {
 	c.beginPath();
-	c.arc(x0, y0, 5, 0, Math.PI * 2, false);
-	c.fill();
+	c.arc(x0, y0, r, 0, Math.PI * 2, false);
+	if (fill) {
+		c.fillStyle = color;
+		c.fill();
+	}
+
 	c.stroke();
 	c.closePath();
-	console.log('drawBubblePoint: ', x0, y0);
+	// console.log('drawBubblePoint: ', x0, y0);
+}
+
+function blockColliding(blockArray, ballArray) {
+	blockArray.forEach((block) => {
+		const b1 = block.x2 - block.x1;
+		const b2 = block.y2 - block.y1;
+
+		// console.log('block: ', b1, b2, block.x1, block.y1, block.x2, block.y2);
+		ballArray.forEach((b) => {
+			const r = b.radius;
+			// check ball on which side of block
+			// given b.x, find yp, a point on the block line. compare with b.y and determine on which side of the block line the ball is at
+			const t = (b.x - block.x1) / (block.x2 - block.x1);
+			const yp = (1 - t) * block.y1 + t * block.y2;
+			// p is the parameter to choose vector direction i.e. pointing towards or away the block line
+			const p = b.y < yp ? 1 : -1;
+			p == 1 ? console.log('above') : console.log('below');
+			// console.log('t: ', t, ', b.y: ', b.y, ',yp: ', yp);
+			// ensure b1 and b2 are non-zero respectively
+			// (a1,a2) is the vector from center of ball which will be normal to the block line
+			// for quadrant 1 slope
+			// const a1 = (p * r) / Math.sqrt(1 + (b1 / b2) ** 2);
+			let a1, a2;
+			// vector a must point towards block
+			if (Math.sign(b1) == Math.sign(b2)) {
+				a1 = -(p * r) / Math.sqrt(1 + (b1 / b2) ** 2);
+				a2 = (p * r) / Math.sqrt(1 + (b2 / b1) ** 2);
+			} else {
+				a1 = (p * r) / Math.sqrt(1 + (b1 / b2) ** 2);
+				a2 = (p * r) / Math.sqrt(1 + (b2 / b1) ** 2);
+			}
+
+			// (x1,y1) is the point on the edge of the ball. (x1,y1) and (b.x,b.y) forms the head and tail of the vector arrow, a = (a1,a2)
+			const x1 = b.x + a1;
+			const y1 = b.y + a2;
+			// console.log(a1, a2, b.x, b.y, x1, y1);
+			drawVector(b.x, b.y, x1, y1);
+			// const dx = b.x - xp
+			// if(Math.hypot(dx,dy) < b.radius){
+			// 	console.log('hit block')
+			// }
+			const a21 = a2 / a1;
+			const Dy = block.y2 - block.y1;
+			const Dx = block.x2 - block.x1;
+			const Ey = block.y1 - b.y;
+			const Ex = block.x1 - b.x;
+			const num = Ey - Ex * a21;
+			const den = Dy - Dx * a21;
+			// k is the parameter of a vector line equation for the block line
+			const k = -num / den;
+			console.log(a1, a2, a21, num, den, 'k: ', k);
+			// (xs,ys ) is point of intersection of block line and normal line drawn from center of ball. the normal line is parallel to vector (a1,a2)
+			// const xs = (1-k)*block.x1 + k*block.x2
+			// const ys = (1-k)*block.y1 + k*block.y2
+			const xs = (1 - k) * block.x1 + k * block.x2;
+			const ys = (1 - k) * block.y1 + k * block.y2;
+			console.log('xs: ', xs, 'ys: ', ys);
+
+			// determine distance between ball and block line and compare with ball radius. d is actually s.a
+			const dx = b.x - xs;
+			const dy = b.y - ys;
+			const d = Math.hypot(dx, dy);
+			let g = b.radius;
+			g = 0;
+			if (
+				xs + g > Math.min(block.x1, block.x2) &&
+				xs - g < Math.max(block.x1, block.x2) &&
+				ys + g > Math.min(block.y1, block.y2) &&
+				ys - g < Math.max(block.y1, block.y2)
+			) {
+				// check that after block endpoints, no collision between ball and block
+				drawBubblePoint(xs, ys, 5, b.color);
+
+				// console.log('d: ',	d, 'dx: ',	dx,	'dy: ',	dy,	', b.radius: ',	b.radius);
+				if (d < b.radius) {
+					// console.log('hit block');
+
+					// console.log('after: ' + b1.dx);
+					const vb1 = { i: b.dx, j: b.dy };
+
+					// determine ball velocity components in the line of collision(a) and normal to the line(n)
+					const am = Math.hypot(a1, a2);
+					const a1u = a1 / am;
+					const a2u = a2 / am;
+					// computing unit vectors in both directions
+					const va = { i: a1u, j: a2u };
+					const vn = { i: -a2u, j: a1u };
+					// console.log('va: ',va,', vn: ',vn)
+					const b1Dotva = dotPoduct(vb1, va);
+					const b1Dotvn = dotPoduct(vb1, vn);
+					// assign to initial velocities, u, for convenience
+					const u1a = b1Dotva;
+					const u1n = b1Dotvn;
+					// calculate ball velocities after collision using conservation of linear momentum
+					const v1a = -u1a;
+					const v1n = u1n;
+					// console.log('u1a: ' + u1a + ', u2a: ' + u2a + ', v1a: ' + v1a + ', v2a: ' + v2a)
+					// v1 and v2 are scalar quantities pointing in the va direction; va, vx are unit vectors
+					const v1aDotvx = v1a * dotPoduct(va, vx);
+					const v1aDotvy = v1a * dotPoduct(va, vy);
+
+					const v1nDotvx = u1n * dotPoduct(vn, vx);
+					const v1nDotvy = u1n * dotPoduct(vn, vy);
+
+					// console.log('v1aDotvx: ' + v1aDotvx + ', vx.i: ' + vx.i + ', vx.j: ' + vx.j);
+					// add the x- and y- components of ball velocities after collision
+					// drawBubblePoint(b.x, b.y, b.radius+2, '#000088',0)
+
+					b.dx = v1aDotvx + v1nDotvx;
+					b.dy = v1aDotvy + v1nDotvy;
+					b.x += (b.radius - d + 1) * -1 * dotPoduct(va, vx); // + v1nDotvx;
+					b.y += (b.radius - d + 1) * -1 * dotPoduct(va, vy); // + v1nDotvy;
+					// drawBubblePoint(b.x, b.y, b.radius, '#0000FF',0)
+					// console.log(b.x,b.y,'draw bubble')
+					// add buffer so that it doesn't oscillate...depends on angles
+					// b.x = xs + Math.sign(b.dx)*(d+2)
+					// b.y = ys + Math.sign(b.dy)*(d+2)
+					// console.log('after momentum: ' + b1.dx);
+					// cancelAnimationFrame(animationId);
+				}
+			}
+		});
+	});
+}
+
+function createRectBlock(blockArray, points){
+	blockArray.push(new Block(points[0].x,points[0].y,points[1].x,points[1].y));
+	blockArray.push(new Block(points[1].x,points[1].y,points[2].x,points[2].y));
+	blockArray.push(new Block(points[2].x,points[2].y,points[3].x,points[3].y));
+	blockArray.push(new Block(points[3].x,points[3].y,points[0].x,points[0].y));
 }
 
 function init() {
-	ballArray = [];
+	// ballArray = [];
 	for (let i = 0; i < numBalls; i++) {
 		var radius = randomIntFromRange(20, 80);
 		var x = randomIntFromRange(radius, canvas.width - radius);
 		var y = randomIntFromRange(0, canvas.height - radius);
+
+		x = mouse.x;
+		y = mouse.y;
+
 		var dx = randomIntFromRange(-8, 8);
 		var dy = randomIntFromRange(-8, 8);
 		var color = randomColor(colors);
@@ -154,59 +335,85 @@ function init() {
 	// console.log(ballArray);
 
 	blockArray = [];
-	blockArray.push(
-		new Block(0, canvas.height / 2, canvas.width / 2, canvas.height)
-	);
+	let points=[]
+	let cw = canvas.width
+	let ch = canvas.height
+	let t = 50
+	points.push({x:ch/4 - t, y:ch/4 + t})
+	points.push({x:ch/4 + t, y:ch/4 - t})
+	points.push({x:ch*2/4 + t, y:ch*2/4 -t})
+	points.push({x:ch*2/4 - t, y:ch*2/4 + t})
+	createRectBlock(blockArray, points)
 
-	blockArray.forEach((block) => {
-		const b1 = block.x2 - block.x1;
-		const b2 = block.y2 - block.y1;
-		console.log('block: ', b1, b2, block.x1, block.y1, block.x2, block.y2);
-		ballArray.forEach((b) => {
-			const r = b.radius;
-			// check ball on which side of block
-			const t = (b.x - block.x1) / (block.x2 - block.x1);
-			const yp = (1 - t) * block.y1 + t * block.y2;
-			const p = b.y > yp ? 1 : -1;
-			p == 1 ? console.log('above') : console.log('below');
-			console.log('t: ', t, ', b.y: ', b.y, ',yp: ', yp);
-			// ensure b1 and b2 are non-zero respectively
+	cw = canvas.width
+	ch = canvas.height
+	t = 100
+	let s = 500
+	points = []
+	points.push({x:ch/4 - t + s, y:ch/4 + t})
+	points.push({x:ch/4 + t + s, y:ch/4 - t})
+	points.push({x:ch*2/4 + t + s, y:ch*2/4 -t})
+	points.push({x:ch*2/4 - t + s, y:ch*2/4 + t})
+	createRectBlock(blockArray, points)
 
-			const a1 = (p * r) / Math.sqrt(1 + (b1 / b2) ** 2);
-			const a2 = (-p * r) / Math.sqrt(1 + (b2 / b1) ** 2);
-			const x1 = b.x + a1;
-			const y1 = b.y + a2;
-			console.log(a1, a2, b.x, b.y, x1, y1);
-			drawVector(b.x, b.y, x1, y1);
-			// const dx = b.x - xp
-			// if(Math.hypot(dx,dy) < b.radius){
-			// 	console.log('hit block')
-			// }
-			const a21 = a2 / a1;
-			const num = block.y1 - b.y - a21 + b.x * a21;
-			const den = block.y1 - block.y2 - block.x1 * a21 + block.x2 * a21;
-			const k = num / den;
-			console.log('k: ', k)
-			const xs = (1-k)*block.x1 + k*block.x2
-			const ys = (1-k)*block.y1 + k*block.y2
-			drawBubblePoint(xs,ys)
+	blockArray.push(new Block(0,ch*5/6,cw,ch*6/7))
+	// for(let i=0;i<3;i++){
+	// 	blockArray.push(
+	// 		new Block(
+	// 			points[i].x,
+	// 			points[i].y,
+	// 			points[i+1].x,
+	// 			points[i+1].y
+	// 		)
+	// 	);
+	// }
 
-		});
+	// blockArray.push(
+	// 	new Block(
+	// 		canvas.width / 4,
+	// 		canvas.width / 4,
+	// 		(canvas.width * 3) / 4,
+	// 		(canvas.width * 3) / 4
+	// 	)
+	// );
+	// blockArray.push(
+	// 	new Block(canvas.width - canvas.height, canvas.height, canvas.width, 0)
+	// );
+	// blockArray.push(new Block(0, 0, canvas.width, canvas.width));
+	// blockArray.push(new Block(canvas.width, canvas.width, 0, 0));
+	// blockArray.push(new Block(canvas.width / 2, 0, (canvas.width * 3) / 4, canvas.height));
+	// blockArray.push(new Block(0, canvas.height / 3, canvas.width, canvas.height / 2));
+	// blockArray.push(
+	// 	new Block(canvas.width / 2, 0, canvas.width, canvas.width / 2)
+	// );
+	// blockArray.push(new Block(0, canvas.width / 2, canvas.width / 2, 0));
+	// ball colliding with block
+	blockColliding(blockArray, ballArray);
+
+	blockArray.forEach((b) => {
+		b.draw();
+		// console.log('block position: ', b.x1, b.y1, b.x2, b.y2);
 	});
-
-	blockArray.forEach((b) => b.draw());
 }
 
 let vx = { i: 1, j: 0 };
 let vy = { i: 0, j: 1 };
 
+function calculateBallLife() {
+	ballArray.forEach((b, id) => {
+		b.life -= 1;
+		if (b.life == 0) ballArray.splice(id, 1);
+	});
+}
+
 // Animation Loop
 function animate() {
-	requestAnimationFrame(animate);
+	animationId = requestAnimationFrame(animate);
 	c.clearRect(0, 0, canvas.width, canvas.height);
+	// calculateBallLife()
 
 	blockArray.forEach((b) => {
-		console.log('block');
+		// console.log('block');
 		b.update();
 	});
 
@@ -293,6 +500,9 @@ function animate() {
 			});
 		}
 	});
+
+	// ball colliding with block
+	blockColliding(blockArray, ballArray);
 }
 
 function momentumChange(m1, u1, m2, u2) {
@@ -309,5 +519,6 @@ function dotPoduct(v1, v2) {
 	return v1.i * v2.i + v1.j * v2.j;
 }
 
+let animationId;
 init();
-// animate();
+animate();
