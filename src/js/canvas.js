@@ -518,7 +518,7 @@ function momentumChange(m1, u1, m2, u2) {
 function dotPoduct(v1, v2) {
 	return v1.i * v2.i + v1.j * v2.j;
 }
-
+// main
 let animationId;
 init();
 animate();
